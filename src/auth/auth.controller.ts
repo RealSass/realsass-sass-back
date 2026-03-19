@@ -1,24 +1,34 @@
-import { Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  HttpCode,
+  HttpStatus,
+  Query,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../common/decorators/current-user.decorator';
-
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * POST /api/v1/auth/sync
-   * Verifica el token de Firebase (via guard global) y sincroniza
-   * el usuario con la base de datos PostgreSQL.
+   * POST /auth/sync?ref=RE-XXXXXXXX  (ref opcional)
+   * Verifica el token de Firebase y sincroniza el usuario con PostgreSQL.
+   *
+   * Query params:
+   *   ref (opcional): código de afiliado para registrar el referido
    *
    * Headers: Authorization: Bearer <firebase_id_token>
    */
   @Post('sync')
   @HttpCode(HttpStatus.OK)
-  async syncUser(@CurrentUser() user: CurrentUserPayload) {
-    const result = await this.authService.syncUser(user);
+  async syncUser(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('ref') affiliateCode?: string,
+  ) {
+    const result = await this.authService.syncUser(user, affiliateCode);
 
     return {
       success: true,

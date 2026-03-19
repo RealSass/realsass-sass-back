@@ -5,25 +5,20 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { AffiliatesModule } from './affiliate/affiliate.module';
+import { CollaboratorsModule } from './collaborators/collaborators.module';
 import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     PrismaModule,
     AuthModule,
     UsersModule,
     OrganizationsModule,
+    AffiliatesModule,
+    CollaboratorsModule,
   ],
-  providers: [
-    {
-      // Guard global: todas las rutas protegidas por defecto
-      provide: APP_GUARD,
-      useClass: FirebaseAuthGuard,
-    },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: FirebaseAuthGuard }],
 })
 export class AppModule {}

@@ -23,7 +23,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`🚀 Real Estate SaaS Backend running on port ${port}`);
+  console.log(`🚀 Real Estate SaaS Backend running on port http://localhost:${port}`);
 }
 
 bootstrap();

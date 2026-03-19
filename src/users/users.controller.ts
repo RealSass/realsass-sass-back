@@ -17,7 +17,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * GET /api/v1/users/me
+   * GET /users/me
    * Retorna el perfil completo del usuario autenticado
    */
   @Get('me')
@@ -30,7 +30,7 @@ export class UsersController {
   }
 
   /**
-   * PATCH /api/v1/users/select-role
+   * PATCH /users/select-role
    * Permite al usuario activar su rol: owner | affiliate
    *
    * Body: { "role": "owner" } o { "role": "affiliate" }

@@ -1,10 +1,5 @@
-/// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "client"
 }
 
@@ -12,32 +7,92 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String         @id @default(uuid())
-  firebaseUid   String         @unique
-  email         String         @unique
-  isOwner       Boolean        @default(false)
-  isAffiliate   Boolean        @default(false)
-  affiliateCode String?        @unique
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+// ─── Enums ────────────────────────────────────────────────────────────────────
 
-  organization  Organization?
-  affiliateData AffiliateData?
+enum CollaboratorStatus {
+  PENDING   // invitado, aún no aceptó
+  ACTIVE    // aceptó la invitación
+  REMOVED   // fue removido por el owner
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id             String  @id @default(uuid())
+  firebaseUid    String  @unique
+  email          String  @unique
+  isOwner        Boolean @default(false)
+  isAffiliate    Boolean @default(false)
+  affiliateCode  String? @unique
+  referredByCode String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization    Organization?
+  affiliateData   AffiliateData?
+  collaborations  Collaborator[]  // orgs donde es colaborador
 
   @@map("users")
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  name        String?
+  description String?
+  logoUrl     String?
+  website     String?
+  phone       String?
+  address     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collaborators Collaborator[]
 
   @@map("organizations")
+}
+
+model Collaborator {
+  id             String             @id @default(uuid())
+  organizationId String
+  userId         String?            // null hasta que acepta
+  email          String             // email invitado
+  status         CollaboratorStatus @default(PENDING)
+
+  // Permisos granulares
+  canViewListings        Boolean @default(true)
+  canCreateListings      Boolean @default(false)
+  canEditListings        Boolean @default(false)
+  canDeleteListings      Boolean @default(false)
+  canViewStats           Boolean @default(false)
+  canManageLeads         Boolean @default(false)
+  canManageCollaborators Boolean @default(false)
+
+  invitedAt  DateTime  @default(now())
+  acceptedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invitation   Invitation?
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("collaborators")
+}
+
+model Invitation {
+  id             String   @id @default(uuid())
+  collaboratorId String   @unique
+  token          String   @unique @default(uuid())
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
 }
 
 model AffiliateData {
