@@ -49,7 +49,8 @@ model Organization {
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   collaborators Collaborator[]
-
+  themes  ProjectTheme[]   // temas propios del owner
+  
   @@map("organizations")
 }
 
@@ -106,4 +107,24 @@ model AffiliateData {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("affiliate_data")
+}
+
+model ProjectTheme {
+  id             String        @id @default(uuid())
+  projectKey     String        @unique
+  name           String
+  config         Json          @default("{}")
+
+  // null  → tema global (insertado por el seed, no pertenece a ningún owner)
+  // orgId → tema propio del owner de esa organización
+  organizationId String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([projectKey])
+  @@index([organizationId])
+  @@map("project_themes")
 }

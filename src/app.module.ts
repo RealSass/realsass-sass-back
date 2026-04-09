@@ -8,6 +8,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { AffiliatesModule } from './affiliate/affiliate.module';
 import { CollaboratorsModule } from './collaborators/collaborators.module';
 import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
+import { ThemesModule } from './themes/themes.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
     OrganizationsModule,
     AffiliatesModule,
     CollaboratorsModule,
+    ThemesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: FirebaseAuthGuard }],
 })
