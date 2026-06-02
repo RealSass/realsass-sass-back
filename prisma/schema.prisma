@@ -25,6 +25,8 @@ model User {
   isAffiliate    Boolean @default(false)
   affiliateCode  String? @unique
   referredByCode String?
+  displayName   String?
+  avatarUrl     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
