@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUserPayload } from '../common/decorators/current-user.decorator';
-import { User } from 'generated/prisma/client';
 import { AffiliatesService } from 'src/affiliate/affiliate.service';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
