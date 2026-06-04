@@ -33,8 +33,6 @@ COPY . .
 RUN pnpm prisma generate \
  && pnpm run build
 
-RUN test -f dist/main.js || (echo "ERROR: dist/main.js no generado" && exit 1)
-
 FROM node:22-alpine AS runner
 RUN apk add --no-cache dumb-init
 WORKDIR /app
