@@ -53,4 +53,4 @@ USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 
-CMD ["dumb-init", "node", "dist/main"]
+CMD ["dumb-init", "node", "dist/src/main"]
