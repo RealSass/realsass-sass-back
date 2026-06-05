@@ -41,4 +41,4 @@ USER app
 EXPOSE 3000
 
 # Ejecutar el bundle compilado directamente con node (no nest start)
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
