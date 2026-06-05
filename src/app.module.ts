@@ -1,3 +1,4 @@
+import { HealthModule } from './health/health.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -11,6 +12,7 @@ import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
 
 @Module({
   imports: [
+    HealthModule,
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     PrismaModule,
     AuthModule,
