@@ -19,7 +19,7 @@ COPY . .
 # Genera el Prisma client y compila TypeScript
 RUN pnpm prisma generate && pnpm build
 # Elimina devDependencies para reducir el tamaño del runtime
-RUN pnpm prune --prod
+RUN pnpm prune --prod --force
 
 # =============================================================================
 # Stage 3: runtime — imagen mínima de producción
