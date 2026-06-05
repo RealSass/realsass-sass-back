@@ -1,12 +1,13 @@
 // src/health/health.controller.ts
 //
-// Endpoint: GET /health
-// Retorna HTTP 200 indicando que el proceso está vivo.
-// No chequea la DB — si la DB está sleeping Railway no debe matar el deploy.
-// El endpoint está excluido del globalPrefix 'api/v1' (ver main.ts).
+// @Public() es OBLIGATORIO: el APP_GUARD global (FirebaseAuthGuard) aplica
+// a todas las rutas. Sin este decorador Railway recibe 401 en cada intento
+// de healthcheck y el deploy nunca pasa.
 
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Public } from '../common/decorators/public.decorator';
 
+@Public()
 @Controller('health')
 export class HealthController {
   @Get()
