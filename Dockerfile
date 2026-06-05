@@ -1,53 +1,44 @@
+# syntax=docker/dockerfile:1.7
 # =============================================================================
-# Dockerfile — real-back (NestJS)
-# node:22-alpine + pnpm@10.11.1 + shamefully-hoist
-#
-# nest-cli sourceRoot:src + tsconfig outDir:./dist (sin rootDir)
-# → emite a dist/main.js
+# Stage 1: deps — instala TODAS las dependencias (incluyendo devDeps para build)
 # =============================================================================
-
 FROM node:22-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@10.11.1 --activate
 WORKDIR /app
-COPY package.json .npmrc* ./
-RUN pnpm install --no-frozen-lockfile
+RUN corepack enable && corepack prepare pnpm@latest --activate
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@10.11.1 --activate
+# =============================================================================
+# Stage 2: build — compila TypeScript y genera artefactos Prisma
+# =============================================================================
+FROM node:22-alpine AS build
 WORKDIR /app
-
-ARG DATABASE_URL="postgresql://build:build@localhost:5432/build"
-ARG FIREBASE_PROJECT_ID
-ARG FIREBASE_CLIENT_EMAIL
-ARG FIREBASE_PRIVATE_KEY
-
-ENV DATABASE_URL=$DATABASE_URL
-ENV FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID
-ENV FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL
-ENV FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY
-ENV NODE_ENV=development
-
+RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Genera el Prisma client y compila TypeScript
+RUN pnpm prisma generate && pnpm build
+# Elimina devDependencies para reducir el tamaño del runtime
+RUN pnpm prune --prod
 
-RUN pnpm prisma generate \
- && pnpm run build
-
-FROM node:22-alpine AS runner
-RUN apk add --no-cache dumb-init
+# =============================================================================
+# Stage 3: runtime — imagen mínima de producción
+# =============================================================================
+FROM node:22-alpine AS runtime
 WORKDIR /app
+
 ENV NODE_ENV=production
-
-RUN addgroup --system --gid 1001 nodejs \
- && adduser  --system --uid 1001 nestjs
-
-COPY --from=builder --chown=nestjs:nodejs /app/dist         ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/prisma           ./prisma
-COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
-
-USER nextjs
-EXPOSE 3000
 ENV PORT=3000
 
-CMD ["dumb-init", "node", "dist/src/main"]
+COPY --from=build --chown=app:app /app/node_modules ./node_modules
+COPY --from=build --chown=app:app /app/dist         ./dist
+COPY --from=build --chown=app:app /app/package.json ./package.json
+COPY --from=build --chown=app:app /app/prisma       ./prisma
+
+# Cambiar al user sin privilegios ANTES de exponer
+USER app
+
+EXPOSE 3000
+
+# Ejecutar el bundle compilado directamente con node (no nest start)
+CMD ["node", "dist/main.js"]
