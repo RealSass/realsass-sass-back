@@ -5,8 +5,8 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "dumb-init node dist/src/main",
-    "healthcheckPath": "/health",
+    "startCommand": "npx prisma migrate deploy && node dist/main",
+    "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
