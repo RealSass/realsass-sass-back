@@ -60,7 +60,21 @@ export class UsersService {
     // Construir lista de tenants:
     // 1. Su propia org (si es Owner)
     // 2. Orgs donde es colaborador activo
-    const tenants = [];
+    type Tenant = {
+      organizationId: string
+      organization:   any
+      role:           'OWNER' | 'COLLABORATOR'
+      permissions: {
+        canViewListings:        boolean
+        canCreateListings:      boolean
+        canEditListings:        boolean
+        canDeleteListings:      boolean
+        canViewStats:           boolean
+        canManageLeads:         boolean
+        canManageCollaborators: boolean
+      }
+    }
+    const tenants: Tenant[] = [];
 
     if (user.isOwner && user.organization) {
       tenants.push({
