@@ -1,26 +1,22 @@
 import {
-  Controller,
-  Post,
-  HttpCode,
-  HttpStatus,
-  Query,
+  Controller, Post, Get, HttpCode, HttpStatus, Query, NotFoundException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../common/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   /**
-   * POST /auth/sync?ref=RE-XXXXXXXX  (ref opcional)
-   * Verifica el token de Firebase y sincroniza el usuario con PostgreSQL.
-   *
-   * Query params:
-   *   ref (opcional): código de afiliado para registrar el referido
-   *
-   * Headers: Authorization: Bearer <firebase_id_token>
+   * POST /auth/sync
+   * Sincroniza el usuario de Firebase con la DB.
+   * Devuelve el perfil completo (shape canónico).
    */
   @Post('sync')
   @HttpCode(HttpStatus.OK)
@@ -29,14 +25,23 @@ export class AuthController {
     @Query('ref') affiliateCode?: string,
   ) {
     const result = await this.authService.syncUser(user, affiliateCode);
-
     return {
       success: true,
-      isNew: result.isNew,
-      message: result.isNew
-        ? 'Usuario creado exitosamente'
-        : 'Usuario sincronizado exitosamente',
-      data: result.user,
+      isNew:   result.isNew,
+      message: result.isNew ? 'Usuario creado exitosamente' : 'Usuario sincronizado exitosamente',
+      data:    result.user,
     };
+  }
+
+  /**
+   * GET /auth/me
+   * Perfil completo del usuario autenticado.
+   * Alias de GET /users/me — útil para SSO con otros sistemas del ecosistema.
+   */
+  @Get('me')
+  async getMe(@CurrentUser() user: CurrentUserPayload) {
+    const profile = await this.usersService.getMyProfile(user.uid);
+    if (!profile) throw new NotFoundException('Usuario no encontrado. Llamá a /auth/sync primero.');
+    return { success: true, data: profile };
   }
 }

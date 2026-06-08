@@ -1,16 +1,10 @@
 import {
-  Controller,
-  Patch,
-  Body,
-  Get,
-  HttpCode,
-  HttpStatus,
+  Controller, Patch, Body, Get, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { SelectRoleDto } from './dto/select-role.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../common/decorators/current-user.decorator';
-
 
 @Controller('users')
 export class UsersController {
@@ -18,23 +12,17 @@ export class UsersController {
 
   /**
    * GET /users/me
-   * Retorna el perfil completo del usuario autenticado
+   * Perfil completo: user + org + tenants (colaboraciones) + affiliateData
    */
   @Get('me')
   async getProfile(@CurrentUser() user: CurrentUserPayload) {
-    const profile = await this.usersService.findByFirebaseUid(user.uid);
-    return {
-      success: true,
-      data: profile,
-    };
+    const profile = await this.usersService.getMyProfile(user.uid);
+    return { success: true, data: profile };
   }
 
   /**
    * PATCH /users/select-role
-   * Permite al usuario activar su rol: owner | affiliate
-   *
-   * Body: { "role": "owner" } o { "role": "affiliate" }
-   * Headers: Authorization: Bearer <firebase_id_token>
+   * Activa rol owner o affiliate. Devuelve perfil completo actualizado.
    */
   @Patch('select-role')
   @HttpCode(HttpStatus.OK)
