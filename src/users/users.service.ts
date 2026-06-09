@@ -211,4 +211,49 @@ export class UsersService {
     }
     return code;
   }
+
+  /**
+   * GET /auth/dashboard-access
+   * Informa al dashboard-back si este usuario puede acceder al dashboard
+   * y con qué rol (OWNER → recibe ADMIN, COLLABORATOR → recibe AGENTE).
+   */
+  async getDashboardAccess(firebaseUid: string): Promise<{
+    canAccess: boolean;
+    role?:     'OWNER' | 'COLLABORATOR';
+    email?:    string;
+    nombre?:   string;
+    reason?:   string;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where:   { firebaseUid },
+      include: {
+        organization:   { select: { id: true, name: true } },
+        collaborations: { where: { status: 'ACTIVE' }, select: { id: true } },
+      },
+    });
+
+    if (!user) {
+      return { canAccess: false, reason: 'Usuario no encontrado' };
+    }
+
+    if (user.isOwner) {
+      return {
+        canAccess: true,
+        role:      'OWNER',
+        email:     user.email  ?? undefined,
+        nombre:    user.displayName ?? undefined,
+      };
+    }
+
+    if (user.collaborations.length > 0) {
+      return {
+        canAccess: true,
+        role:      'COLLABORATOR',
+        email:     user.email ?? undefined,
+        nombre:    user.displayName ?? undefined,
+      };
+    }
+
+    return { canAccess: false, reason: 'No es Owner ni Colaborador activo' };
+  }
 }

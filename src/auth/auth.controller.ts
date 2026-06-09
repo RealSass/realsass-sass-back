@@ -44,4 +44,15 @@ export class AuthController {
     if (!profile) throw new NotFoundException('Usuario no encontrado. Llamá a /auth/sync primero.');
     return { success: true, data: profile };
   }
+
+  /**
+   * GET /auth/dashboard-access
+   * Protegido por FirebaseAuthGuard.
+   * El dashboard-back lo consulta para saber el rol real del usuario
+   * antes de asignarle ADMIN o AGENTE en su propia DB.
+   */
+  @Get('dashboard-access')
+  async dashboardAccess(@CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.getDashboardAccess(user.uid);
+  }
 }
