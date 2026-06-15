@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SelectRoleDto, UserRole } from './dto/select-role.dto';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { v4 as uuidv4 } from 'uuid';
+import type { OrganizationAccessResult } from './types/organization-access.types';
 
 @Injectable()
 export class UsersService {
@@ -20,11 +21,6 @@ export class UsersService {
 
   /**
    * Construye el perfil completo del usuario — shape canónico para el front.
-   * Incluye:
-   *   - datos del usuario
-   *   - organización propia (si es Owner)
-   *   - colaboraciones activas en otras orgs (multitenancy)
-   *   - affiliateData (si es Afiliado)
    */
   async buildProfile(firebaseUid: string) {
     const user = await this.prisma.user.findUnique({
@@ -32,7 +28,6 @@ export class UsersService {
       include: {
         organization: true,
         affiliateData: true,
-        // orgs donde es colaborador activo (multitenancy)
         collaborations: {
           where: { status: 'ACTIVE' },
           include: {
@@ -57,9 +52,6 @@ export class UsersService {
 
     if (!user) return null;
 
-    // Construir lista de tenants:
-    // 1. Su propia org (si es Owner)
-    // 2. Orgs donde es colaborador activo
     type Tenant = {
       organizationId: string
       organization:   any
@@ -81,7 +73,7 @@ export class UsersService {
         organizationId: user.organization.id,
         organization:   user.organization,
         role:           'OWNER' as const,
-        permissions:    {
+        permissions: {
           canViewListings:        true,
           canCreateListings:      true,
           canEditListings:        true,
@@ -122,11 +114,8 @@ export class UsersService {
       referredByCode: user.referredByCode,
       createdAt:      user.createdAt,
       updatedAt:      user.updatedAt,
-      // Org propia (acceso rápido sin tener que buscar en tenants)
       organization:   user.organization,
-      // Todos los tenants (propia + colaboraciones)
       tenants,
-      // Datos de afiliado
       affiliateData:  user.affiliateData
         ? {
             id:            user.affiliateData.id,
@@ -138,18 +127,12 @@ export class UsersService {
     };
   }
 
-  /**
-   * GET /users/me — perfil completo
-   */
   async getMyProfile(firebaseUid: string) {
     const profile = await this.buildProfile(firebaseUid);
     if (!profile) throw new NotFoundException('Usuario no encontrado. Llamá a /auth/sync primero.');
     return profile;
   }
 
-  /**
-   * PATCH /users/select-role
-   */
   async selectRole(firebaseUid: string, dto: SelectRoleDto) {
     const user = await this.prisma.user.findUnique({
       where: { firebaseUid },
@@ -189,7 +172,6 @@ export class UsersService {
       this.logger.log(`Usuario ${user.email} activado como Affiliate con código: ${affiliateCode}`);
     }
 
-    // Siempre devolver el perfil completo actualizado
     const profile = await this.buildProfile(firebaseUid);
     return {
       success: true,
@@ -200,23 +182,6 @@ export class UsersService {
     };
   }
 
-  private async generateUniqueAffiliateCode(): Promise<string> {
-    let code = '';
-    let exists = true;
-    while (exists) {
-      const raw = uuidv4().replace(/-/g, '').substring(0, 8).toUpperCase();
-      code = `RE-${raw}`;
-      const found = await this.prisma.user.findUnique({ where: { affiliateCode: code } });
-      exists = !!found;
-    }
-    return code;
-  }
-
-  /**
-   * GET /auth/dashboard-access
-   * Informa al dashboard-back si este usuario puede acceder al dashboard
-   * y con qué rol (OWNER → recibe ADMIN, COLLABORATOR → recibe AGENTE).
-   */
   async getDashboardAccess(firebaseUid: string): Promise<{
     canAccess: boolean;
     role?:     'OWNER' | 'COLLABORATOR';
@@ -232,28 +197,108 @@ export class UsersService {
       },
     });
 
+    if (!user) return { canAccess: false, reason: 'Usuario no encontrado' };
+    if (user.isOwner) {
+      return { canAccess: true, role: 'OWNER', email: user.email ?? undefined, nombre: user.displayName ?? undefined };
+    }
+    if (user.collaborations.length > 0) {
+      return { canAccess: true, role: 'COLLABORATOR', email: user.email ?? undefined, nombre: user.displayName ?? undefined };
+    }
+    return { canAccess: false, reason: 'No es Owner ni Colaborador activo' };
+  }
+
+  /**
+   * GET /auth/organization-access
+   *
+   * Resuelve si `firebaseUid` tiene acceso a `organizationId` y con qué
+   * rol/permisos. Contrato consumido por real-config-back y otros sistemas hoja.
+   *
+   * Casos:
+   *  1. OWNER de esa org     → permisos completos
+   *  2. COLLABORATOR activo  → permisos reales de la tabla collaborators
+   *  3. Sin relación         → { canAccess: false }
+   */
+  async getOrganizationAccess(
+    firebaseUid: string,
+    organizationId: string,
+  ): Promise<OrganizationAccessResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { firebaseUid },
+      include: {
+        organization: { select: { id: true } },
+        collaborations: {
+          where: { organizationId, status: 'ACTIVE' },
+          select: {
+            canViewListings:        true,
+            canCreateListings:      true,
+            canEditListings:        true,
+            canDeleteListings:      true,
+            canViewStats:           true,
+            canManageLeads:         true,
+            canManageCollaborators: true,
+          },
+        },
+      },
+    });
+
     if (!user) {
       return { canAccess: false, reason: 'Usuario no encontrado' };
     }
 
-    if (user.isOwner) {
+    // Caso 1: owner de esa organización
+    if (user.isOwner && user.organization?.id === organizationId) {
       return {
-        canAccess: true,
-        role:      'OWNER',
-        email:     user.email  ?? undefined,
-        nombre:    user.displayName ?? undefined,
+        canAccess:      true,
+        userId:         user.id,
+        organizationId,
+        role:           'OWNER',
+        permissions: {
+          canViewListings:        true,
+          canCreateListings:      true,
+          canEditListings:        true,
+          canDeleteListings:      true,
+          canViewStats:           true,
+          canManageLeads:         true,
+          canManageCollaborators: true,
+        },
       };
     }
 
-    if (user.collaborations.length > 0) {
+    // Caso 2: colaborador activo de esa organización
+    const collab = user.collaborations[0];
+    if (collab) {
       return {
-        canAccess: true,
-        role:      'COLLABORATOR',
-        email:     user.email ?? undefined,
-        nombre:    user.displayName ?? undefined,
+        canAccess:      true,
+        userId:         user.id,
+        organizationId,
+        role:           'COLLABORATOR',
+        permissions: {
+          canViewListings:        collab.canViewListings,
+          canCreateListings:      collab.canCreateListings,
+          canEditListings:        collab.canEditListings,
+          canDeleteListings:      collab.canDeleteListings,
+          canViewStats:           collab.canViewStats,
+          canManageLeads:         collab.canManageLeads,
+          canManageCollaborators: collab.canManageCollaborators,
+        },
       };
     }
 
-    return { canAccess: false, reason: 'No es Owner ni Colaborador activo' };
+    return {
+      canAccess: false,
+      reason:    'El usuario no tiene acceso a esta organización',
+    };
+  }
+
+  private async generateUniqueAffiliateCode(): Promise<string> {
+    let code = '';
+    let exists = true;
+    while (exists) {
+      const raw = uuidv4().replace(/-/g, '').substring(0, 8).toUpperCase();
+      code = `RE-${raw}`;
+      const found = await this.prisma.user.findUnique({ where: { affiliateCode: code } });
+      exists = !!found;
+    }
+    return code;
   }
 }

@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, HttpCode, HttpStatus, Query, NotFoundException,
+  Controller, Post, Get, HttpCode, HttpStatus, Query, NotFoundException, Headers,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -16,7 +16,6 @@ export class AuthController {
   /**
    * POST /auth/sync
    * Sincroniza el usuario de Firebase con la DB.
-   * Devuelve el perfil completo (shape canónico).
    */
   @Post('sync')
   @HttpCode(HttpStatus.OK)
@@ -36,7 +35,6 @@ export class AuthController {
   /**
    * GET /auth/me
    * Perfil completo del usuario autenticado.
-   * Alias de GET /users/me — útil para SSO con otros sistemas del ecosistema.
    */
   @Get('me')
   async getMe(@CurrentUser() user: CurrentUserPayload) {
@@ -47,12 +45,39 @@ export class AuthController {
 
   /**
    * GET /auth/dashboard-access
-   * Protegido por FirebaseAuthGuard.
-   * El dashboard-back lo consulta para saber el rol real del usuario
-   * antes de asignarle ADMIN o AGENTE en su propia DB.
+   * Usado por real-dashboard-back para resolver rol del usuario.
    */
   @Get('dashboard-access')
   async dashboardAccess(@CurrentUser() user: CurrentUserPayload) {
     return this.usersService.getDashboardAccess(user.uid);
+  }
+
+  /**
+   * GET /auth/organization-access
+   *
+   * Contrato con sistemas hoja del ecosistema (real-config-back, etc.).
+   * Recibe el usuario autenticado (via FirebaseAuthGuard) y el organizationId
+   * en el header x-organization-id, y responde si ese usuario tiene acceso
+   * a esa organización y con qué rol/permisos.
+   *
+   * Shape de respuesta:
+   * {
+   *   canAccess: boolean,
+   *   userId?: string,
+   *   organizationId?: string,
+   *   role?: 'OWNER' | 'COLLABORATOR',
+   *   permissions?: CollaboratorPermissions,
+   *   reason?: string,
+   * }
+   */
+  @Get('organization-access')
+  async organizationAccess(
+    @CurrentUser() user: CurrentUserPayload,
+    @Headers('x-organization-id') organizationId: string,
+  ) {
+    if (!organizationId) {
+      return { canAccess: false, reason: 'x-organization-id header requerido' };
+    }
+    return this.usersService.getOrganizationAccess(user.uid, organizationId);
   }
 }
