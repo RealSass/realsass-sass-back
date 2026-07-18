@@ -21,15 +21,9 @@ export class OrganizationsService {
   async createForUser(userId: string, tx?: Prisma.TransactionClient) {
     const client = tx ?? this.prisma;
 
-    // Slug temporal único basado en el userId.
-    // El owner puede cambiarlo desde PATCH /organizations/me.
-    const slug = `org-${userId.slice(0, 8).toLowerCase()}`;
-
     return client.organization.create({
       data: {
         userId,
-        slug,
-        enabledProducts: { ecommerce: true },
       },
     });
   }

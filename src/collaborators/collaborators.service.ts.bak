@@ -135,7 +135,6 @@ export class CollaboratorsService {
         ? await tx.collaborator.update({
             where: { id: existing.id },
             data: {
-              permissions: {
               canViewListings:        dto.canViewListings        ?? true,
               canCreateListings:      dto.canCreateListings      ?? false,
               canEditListings:        dto.canEditListings        ?? false,
@@ -143,7 +142,6 @@ export class CollaboratorsService {
               canViewStats:           dto.canViewStats           ?? false,
               canManageLeads:         dto.canManageLeads         ?? false,
               canManageCollaborators: dto.canManageCollaborators ?? false,
-            }
             },
             include: { invitation: true },
           })
@@ -151,7 +149,6 @@ export class CollaboratorsService {
             data: {
               organizationId:         org.id,
               email:                  dto.email.toLowerCase(),
-              permissions: {
               canViewListings:        dto.canViewListings        ?? true,
               canCreateListings:      dto.canCreateListings      ?? false,
               canEditListings:        dto.canEditListings        ?? false,
@@ -159,7 +156,6 @@ export class CollaboratorsService {
               canViewStats:           dto.canViewStats           ?? false,
               canManageLeads:         dto.canManageLeads         ?? false,
               canManageCollaborators: dto.canManageCollaborators ?? false,
-            }
             },
             include: { invitation: true },
           });
