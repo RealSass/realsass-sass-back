@@ -61,6 +61,9 @@ model Organization {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   collaborators Collaborator[]
 
+  slug            String?  @unique        // ← AGREGAR
+  enabledProducts Json     @default("{}") // ← AGREGAR
+
   // Relaciones con módulos de config (fusión S1)
   themes        ThemeConfig[]
   secrets       SecretConfig[]
