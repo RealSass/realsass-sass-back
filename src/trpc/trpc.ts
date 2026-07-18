@@ -94,6 +94,8 @@ const enforceOwner = t.middleware(({ ctx, next }) => {
 
 export const router           = t.router;
 export const publicProcedure  = t.procedure;
-export const authProcedure    = t.procedure.use(enforceAuth);
-export const tenantProcedure  = t.procedure.use(enforceTenant);
-export const ownerProcedure   = t.procedure.use(enforceOwner);
+export const authProcedure:   any = t.procedure.use(enforceAuth);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const tenantProcedure: any = t.procedure.use(enforceTenant);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const ownerProcedure:  any = t.procedure.use(enforceOwner);

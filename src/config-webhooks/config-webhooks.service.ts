@@ -4,7 +4,7 @@ import { WebhookDeliveryService } from './webhook-delivery.service';
 import { ConfigAuditService } from '../config-audit/config-audit.service';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import * as crypto from 'crypto';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class ConfigWebhooksService {
