@@ -1,16 +1,16 @@
 // src/redis/redis.service.ts
-// REDIS_ENABLED=false → no-op (útil en dev sin Redis)
 // REDIS_ENABLED=true  → conexión real via REDIS_URL
+// REDIS_ENABLED=false → todos los métodos son no-op (dev sin Redis)
 import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from '@nestjs/common';
 import Redis, { type RedisOptions } from 'ioredis';
 
 const REDIS_OPTIONS: RedisOptions = {
-  retryStrategy:    (r) => (r > 10 ? null : Math.min(r * 200, 5_000)),
-  reconnectOnError: (e) => e.message.includes('ECONNRESET') ? 2 : false,
-  lazyConnect:         true,
+  retryStrategy:        (r) => (r > 10 ? null : Math.min(r * 200, 5_000)),
+  reconnectOnError:     (e) => (e.message.includes('ECONNRESET') ? 2 : false),
+  lazyConnect:          true,
   maxRetriesPerRequest: 3,
-  connectTimeout:      10_000,
-  enableOfflineQueue:  true,
+  connectTimeout:       10_000,
+  enableOfflineQueue:   true,
 };
 
 @Injectable()
@@ -44,24 +44,43 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (this.client) await this.client.quit();
   }
 
+  // ── API pública — compatible con ConfigCacheService ────────────────────────
+
   async get(key: string): Promise<string | null> {
-    return this.client ? this.client.get(key) : null;
+    return this.client?.get(key) ?? null;
   }
-  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+
+  /** set con TTL opcional. Acepta tanto (key, value, ttl) como (key, value, 'EX', ttl) */
+  async set(key: string, value: string, exOrTtl?: 'EX' | number, ttl?: number): Promise<void> {
     if (!this.client) return;
-    ttlSeconds ? await this.client.set(key, value, 'EX', ttlSeconds)
-               : await this.client.set(key, value);
+    if (typeof exOrTtl === 'number') {
+      await this.client.set(key, value, 'EX', exOrTtl);
+    } else if (exOrTtl === 'EX' && ttl !== undefined) {
+      await this.client.set(key, value, 'EX', ttl);
+    } else {
+      await this.client.set(key, value);
+    }
   }
-  async del(key: string): Promise<void> {
-    if (this.client) await this.client.del(key);
+
+  async del(...keys: string[]): Promise<void> {
+    if (!this.client || keys.length === 0) return;
+    await this.client.del(...keys);
   }
+
+  async keys(pattern: string): Promise<string[]> {
+    if (!this.client) return [];
+    return this.client.keys(pattern);
+  }
+
   async getJson<T>(key: string): Promise<T | null> {
     const raw = await this.get(key);
     if (!raw) return null;
     try { return JSON.parse(raw) as T; } catch { return null; }
   }
+
   async setJson<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     await this.set(key, JSON.stringify(value), ttlSeconds);
   }
+
   get isConnected(): boolean { return this.client?.status === 'ready'; }
 }
