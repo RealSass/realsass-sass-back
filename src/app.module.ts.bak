@@ -32,9 +32,9 @@ import { TrpcModule }             from './trpc/trpc.module';
       { name: 'default', ttl: 60_000, limit: 30 },
     ]),
     EventEmitterModule.forRoot({ wildcard: false }),
-    BullModule.forRoot({
-      connection: { url: process.env['REDIS_URL'] ?? 'redis://localhost:6379' },
-    }),
+    ...(process.env['REDIS_ENABLED'] === 'true'
+      ? [BullModule.forRoot({ connection: { url: process.env['REDIS_URL'] ?? 'redis://localhost:6379' } })]
+      : []),
     PrismaModule,
     RedisModule,
     AuthModule,

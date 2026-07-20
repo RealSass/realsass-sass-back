@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { Module }                  from '@nestjs/common';
+import { ConfigModule }            from '@nestjs/config';
+import { APP_GUARD }               from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-import { BullModule } from '@nestjs/bullmq';
+import { EventEmitterModule }      from '@nestjs/event-emitter';
+import { BullModule }              from '@nestjs/bullmq';
 
 import { HealthModule }           from './health/health.module';
 import { PrismaModule }           from './prisma/prisma.module';
@@ -24,17 +24,19 @@ import { ConfigWebhooksModule }   from './config-webhooks/config-webhooks.module
 import { FirebaseAuthGuard }      from './common/guards/firebase-auth.guard';
 import { TrpcModule }             from './trpc/trpc.module';
 
+const REDIS_ENABLED = process.env['REDIS_ENABLED'] === 'true';
+
 @Module({
   imports: [
     HealthModule,
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 30 },
-    ]),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 30 }]),
     EventEmitterModule.forRoot({ wildcard: false }),
-    ...(process.env['REDIS_ENABLED'] === 'true'
-      ? [BullModule.forRoot({ connection: { url: process.env['REDIS_URL'] ?? 'redis://localhost:6379' } })]
-      : []),
+    ...(REDIS_ENABLED ? [
+      BullModule.forRoot({
+        connection: { url: process.env['REDIS_URL'] ?? 'redis://localhost:6379' },
+      }),
+    ] : []),
     PrismaModule,
     RedisModule,
     AuthModule,
